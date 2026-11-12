@@ -4,36 +4,57 @@
 <style>
     .text-public { color: #33b679; }
     .text-private { color: #5f6368; }
+    .text-internal { color: #1a73e8; font-weight: 600; }
 </style>
-<div style="padding: 2rem; max-width: 800px; margin: 0 auto; width: 100%;">
+<div style="padding: 2rem; max-width: 850px; margin: 0 auto; width: 100%;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h2 style="margin: 0; color: #3c4043;">Calendar Settings</h2>
+        <h2 style="margin: 0; color: #3c4043;">Calendar & Schedule Settings</h2>
         <a href="{% url 'calendar' %}" class="btn" style="background: white; color: var(--text-color); border: 1px solid var(--border);">Back to My Calendar</a>
     </div>
 
     <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <h3 style="margin: 0 0 1.5rem 0; color: #1a73e8; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">My Calendars Visibility</h3>
+        <h3 style="margin: 0 0 1.5rem 0; color: #1a73e8; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">My Calendars & Schedules</h3>
         
         <div style="display: flex; flex-direction: column; gap: 1rem;">
             {% for calendar in calendars %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid var(--border); border-radius: 6px; background: #f8f9fa;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border: 1px solid var(--border); border-radius: 6px; background: #f8f9fa;">
                 <div>
-                    <strong style="font-size: 1.1rem; color: #3c4043; display: block; margin-bottom: 0.25rem;">{{ calendar.name }}</strong>
-                    <span class="{% if calendar.is_public %}text-public{% else %}text-private{% endif %}" style="font-size: 0.85rem; font-weight: 500;">
-                        Currently: {% if calendar.is_public %}Public{% else %}Private{% endif %}
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 0.25rem;">
+                        <strong style="font-size: 1.1rem; color: #3c4043;">{{ calendar.name }}</strong>
+                        {% if calendar.is_internal %}
+                        <span style="background: #e8f0fe; color: #1a73e8; border: 1px solid #d2e3fc; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600;">Internal CME Schedule</span>
+                        {% endif %}
+                    </div>
+                    <span class="{% if calendar.is_internal %}text-internal{% elif calendar.is_public %}text-public{% else %}text-private{% endif %}" style="font-size: 0.85rem; font-weight: 500;">
+                        Type: {% if calendar.is_internal %}CME Internal (Distributed to all CME personnel){% elif calendar.is_public %}Public (Discoverable){% else %}Private (Only visible to you){% endif %}
                     </span>
                 </div>
-                <div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    {% if is_staff %}
+                    <form method="post" action="{% url 'update_visibility' calendar.uuid %}" style="margin: 0;">
+                        {% csrf_token %}
+                        {% if calendar.is_internal %}
+                            <input type="hidden" name="is_internal" value="false">
+                            <button type="submit" class="btn" style="background: white; color: #5f6368; border: 1px solid var(--border); font-size: 0.8rem;">Change to Personal</button>
+                        {% else %}
+                            <input type="hidden" name="is_internal" value="true">
+                            <button type="submit" class="btn" style="background: #e8f0fe; color: #1a73e8; border: 1px solid #1a73e8; font-size: 0.8rem;">Mark as CME Internal</button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+
+                    {% if not calendar.is_internal %}
                     <form method="post" action="{% url 'update_visibility' calendar.uuid %}" style="margin: 0;">
                         {% csrf_token %}
                         {% if calendar.is_public %}
                             <input type="hidden" name="is_public" value="false">
-                            <button type="submit" class="btn" style="background: white; color: #dc3545; border: 1px solid #dc3545;">Make Private</button>
+                            <button type="submit" class="btn" style="background: white; color: #dc3545; border: 1px solid #dc3545; font-size: 0.8rem;">Make Private</button>
                         {% else %}
                             <input type="hidden" name="is_public" value="true">
-                            <button type="submit" class="btn" style="background: #33b679; color: white; border: 1px solid #33b679;">Make Public</button>
+                            <button type="submit" class="btn" style="background: #33b679; color: white; border: 1px solid #33b679; font-size: 0.8rem;">Make Public</button>
                         {% endif %}
                     </form>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}
@@ -42,9 +63,10 @@
         </div>
         
         <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-            <p style="margin: 0; color: #5f6368; font-size: 0.9rem;">
-                <strong>Public calendars</strong> can be searched and viewed by other users on the platform. They can also subscribe to them.<br>
-                <strong>Private calendars</strong> are only visible to you.
+            <p style="margin: 0; color: #5f6368; font-size: 0.9rem; line-height: 1.6;">
+                <strong>CME Internal Schedules:</strong> Authoritative institutional training timetables and course programs. Automatically synchronized and available to all authenticated CME users.<br>
+                <strong>Public Calendars:</strong> Personal calendars that other users can discover, preview, and subscribe to.<br>
+                <strong>Private Calendars:</strong> Visible and accessible only to you.
             </p>
         </div>
     </div>

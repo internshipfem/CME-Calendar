@@ -222,7 +222,7 @@
             <div id="mini-calendar"></div>
         </div>
 
-        {% if selected_calendar.user != user and selected_calendar not in subscribed_calendars %}
+        {% if selected_calendar.user != user and selected_calendar not in subscribed_calendars and not selected_calendar.is_internal %}
         <div style="background: #e8f0fe; border: 1px solid #d2e3fc; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
             <h4 style="margin: 0 0 0.5rem 0; color: #1a73e8; font-size: 0.95rem;">Previewing: {{ selected_calendar.name }}</h4>
             <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: #5f6368;">You are previewing a public calendar.</p>
@@ -234,17 +234,63 @@
         {% endif %}
 
         {% if not is_preview_mode %}
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <!-- CME Internal Schedules Section -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h3 style="font-size: 0.875rem; color: #1a73e8; font-weight: 600; margin:0; display:flex; align-items:center; gap:6px;">
+                <span style="font-size:1.05rem;">🏛️</span> CME Internal Schedules
+            </h3>
+        </div>
+        <ul class="calendar-list" style="margin-top: 0; margin-bottom: 1.5rem;">
+            {% for cal in internal_schedules %}
+            <li>
+                <div class="{% if cal.uuid == selected_calendar.uuid %}selected-calendar-item{% endif %}" style="margin-bottom: 0.25rem;">
+                    <div id="cal-view-{{ cal.uuid }}" style="display:flex; align-items:center; justify-content:space-between;">
+                        <a href="?calendar_uuid={{ cal.uuid }}" class="{% if cal.uuid == selected_calendar.uuid %}active{% endif %}" style="flex-grow:1; margin-bottom:0; background:transparent;">
+                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:#e37400; margin-right:8px;"></span>
+                            {{ cal.name }}
+                        </a>
+                        {% if is_staff or cal.user == user %}
+                        <div style="display:flex; gap:4px; padding-right:8px;">
+                            <button onclick="showRename('{{ cal.uuid }}')" style="background:none; border:none; cursor:pointer; color:#5f6368; font-size: 1.1rem; padding: 2px 4px;" title="Rename">&#9998;</button>
+                            <button onclick="showDelete('{{ cal.uuid }}', 'false')" style="background:none; border:none; cursor:pointer; color:#dc3545; font-size: 1.1rem; padding: 2px 4px;" title="Delete">&#128465;</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div id="cal-edit-{{ cal.uuid }}" style="display:none; align-items:center; gap: 4px; padding: 4px 8px;">
+                        <input type="text" id="rename-input-{{ cal.uuid }}" value="{{ cal.name }}" class="form-control" style="padding: 4px; font-size: 0.85rem;">
+                        <button onclick="submitRename('{{ cal.uuid }}')" class="btn" style="padding: 4px 8px; font-size: 0.85rem;">Save</button>
+                        <button onclick="hideEditMode('{{ cal.uuid }}')" class="btn" style="background:#f1f3f4; color:#3c4043; border:1px solid var(--border); padding: 4px 8px; font-size: 0.85rem;">Cancel</button>
+                    </div>
+                    <div id="cal-delete-{{ cal.uuid }}" style="display:none; align-items:center; justify-content: space-between; padding: 4px 8px; background: #fff0f0; border-radius: 4px; margin: 4px 8px;">
+                        <span style="font-size:0.85rem; color:#dc3545; font-weight: 500;">Sure?</span>
+                        <div style="display:flex; gap:4px;">
+                            <button onclick="submitDelete('{{ cal.uuid }}')" class="btn" style="background:#dc3545; padding: 4px 8px; font-size: 0.85rem;">Yes</button>
+                            <button onclick="hideEditMode('{{ cal.uuid }}')" class="btn" style="background:#f1f3f4; color:#3c4043; border:1px solid var(--border); padding: 4px 8px; font-size: 0.85rem;">No</button>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li style="font-size:0.8rem; color:#80868b; padding:4px 8px;">No internal schedules available.</li>
+            {% endfor %}
+        </ul>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h3 style="font-size: 0.875rem; color: #3c4043; font-weight: 500; margin:0;">My Calendars</h3>
             <button title="Create new calendar" class="btn" style="padding: 0.25rem 0.5rem; font-size: 1rem; line-height: 1; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;" onclick="const f = document.getElementById('createCalForm'); f.style.display = f.style.display === 'none' ? 'block' : 'none';">+</button>
         </div>
         
-        <form id="createCalForm" action="{% url 'create_calendar' %}" method="post" class="form-group" style="display: none; margin-bottom: 1rem;">
+        <form id="createCalForm" action="{% url 'create_calendar' %}" method="post" class="form-group" style="display: none; margin-bottom: 1rem; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
             {% csrf_token %}
-            <div style="display: flex; gap: 0.5rem;">
-                <input type="text" name="name" class="form-control" placeholder="New Calendar" required style="padding: 0.25rem 0.5rem;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 4px;">
+                <input type="text" name="name" class="form-control" placeholder="New Calendar Name" required style="padding: 0.25rem 0.5rem;">
                 <button type="submit" class="btn" style="padding: 0.25rem 0.5rem;">Create</button>
             </div>
+            {% if is_staff %}
+            <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; color:#1a73e8; cursor:pointer; margin-top: 4px;">
+                <input type="checkbox" name="is_internal"> Mark as CME Internal Schedule
+            </label>
+            {% endif %}
         </form>
 
         <ul class="calendar-list" style="margin-top: 0;">
@@ -316,6 +362,21 @@
 
     <!-- Main Calendar -->
     <div class="main-calendar">
+        {% if selected_calendar.is_internal %}
+        <div style="background: #e8f0fe; border-left: 4px solid #1a73e8; padding: 10px 16px; margin-bottom: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div>
+                <strong style="color: #1a73e8; font-size: 0.95rem;">🏛️ CME Internal Schedule: {{ selected_calendar.name }}</strong>
+                <span style="margin-left: 12px; font-size: 0.85rem;">
+                    {% if can_edit %}
+                    <span style="color:#137333; font-weight:600; background:#e6f4ea; padding:2px 8px; border-radius:10px;">✓ Authorized Editor</span>
+                    {% else %}
+                    <span style="color:#b06000; font-weight:600; background:#fef7e0; padding:2px 8px; border-radius:10px;">🔒 Read-Only Access (Synced Internally)</span>
+                    {% endif %}
+                </span>
+            </div>
+            <span style="font-size: 0.8rem; color: #5f6368;">Published by: <strong>{{ selected_calendar.user.username }}</strong></span>
+        </div>
+        {% endif %}
         <div id="calendar" style="flex: 1;"></div>
     </div>
 </div>
@@ -457,8 +518,16 @@
     const eventAllDay = document.getElementById('eventAllDay');
     
     const currentCalendarId = "{{ selected_calendar.uuid }}";
+    const canEditCalendar = {{ can_edit|yesno:"true,false" }};
     let calendar, miniCalendar, chatSocket;
     let isUpdatingFromServer = false;
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
     function hideEditMode(id) {
         document.getElementById('cal-view-' + id).style.display = 'flex';
@@ -528,7 +597,24 @@
     }
 
     function openModal(info = null) {
+        if (!info && !canEditCalendar) return;
         eventModal.classList.add('show');
+        
+        const modalTitle = document.getElementById('modalTitle');
+        const submitBtn = document.querySelector('#eventForm button[type="submit"]');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const formInputs = eventForm.querySelectorAll('input:not(#eventId):not(#eventStartStr):not(#eventColor), select, textarea');
+
+        if (!canEditCalendar) {
+            if (modalTitle) modalTitle.textContent = "Event Details (Read-Only)";
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (deleteBtn) deleteBtn.style.display = 'none';
+            formInputs.forEach(el => el.disabled = true);
+        } else {
+            if (modalTitle) modalTitle.textContent = (info && info.event) ? "Edit Event" : "Create Event";
+            if (submitBtn) submitBtn.style.display = 'block';
+            formInputs.forEach(el => el.disabled = false);
+        }
         
         // Positioning
         if (info && info.jsEvent) {
@@ -540,14 +626,12 @@
             let w = eventModal.offsetWidth || 450;
             let h = eventModal.offsetHeight || 500;
             
-            // Try to place to the right, otherwise left
             if (x + w + 20 > screenW) {
                 x = x - w - 10;
             } else {
                 x = x + 10;
             }
             
-            // Keep on screen vertically
             if (y + h > screenH) {
                 y = screenH - h - 10;
             }
@@ -617,6 +701,10 @@
     function closeModal() {
         eventModal.classList.remove('show');
         eventForm.reset();
+        const formInputs = eventForm.querySelectorAll('input:not(#eventId):not(#eventStartStr):not(#eventColor), select, textarea');
+        formInputs.forEach(el => el.disabled = false);
+        const submitBtn = document.querySelector('#eventForm button[type="submit"]');
+        if (submitBtn) submitBtn.style.display = 'block';
         if (calendar) calendar.unselect();
     }
     
@@ -676,11 +764,17 @@
         const miniCalendarEl = document.getElementById('mini-calendar');
         const initialEvents = JSON.parse('{{ initial_events_json|escapejs }}').map(buildEventObject);
         
-        // Setup WebSocket
+        // Setup WebSocket with calendar_id query param
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         chatSocket = new WebSocket(
-            protocol + window.location.host + '/ws/calendar/'
+            protocol + window.location.host + '/ws/calendar/?calendar_id=' + encodeURIComponent(currentCalendarId)
         );
+        chatSocket.onopen = function() {
+            chatSocket.send(JSON.stringify({
+                action: 'join',
+                calendar_id: currentCalendarId
+            }));
+        };
 
         const savedView = localStorage.getItem('calendarView') || 'timeGridWeek';
 
@@ -694,12 +788,13 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            editable: true,
-            selectable: true,
+            editable: canEditCalendar,
+            selectable: canEditCalendar,
             dayMaxEvents: true,
             events: initialEvents,
             eventContent: function(arg) {
-                let titleText = arg.event.title;
+                let rawTitle = arg.event.title || '';
+                let titleText = escapeHtml(rawTitle);
                 let start = arg.event.start;
                 let end = arg.event.end || arg.event.start;
                 let durationMins = (end - start) / (1000 * 60);
@@ -710,7 +805,7 @@
                 if (arg.view.type === 'dayGridMonth' || arg.event.allDay) {
                     contentHtml = `<div style="font-size: 0.9rem; padding: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">`;
                     if (arg.timeText) {
-                        contentHtml += `<span style="font-weight: 500; opacity: 0.9; margin-right: 4px;">${arg.timeText}</span>`;
+                        contentHtml += `<span style="font-weight: 500; opacity: 0.9; margin-right: 4px;">${escapeHtml(arg.timeText)}</span>`;
                     }
                     contentHtml += `<span style="font-weight: 600;">${titleText}</span>`;
                     contentHtml += `</div>`;
@@ -725,7 +820,7 @@
                 else {
                     let timeRange = start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' - ' + end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     contentHtml = `<div style="font-size: 0.9rem; padding: 2px 4px; display: flex; flex-direction: column; overflow: hidden; height: 100%;">`;
-                    contentHtml += `<div style="font-weight: 500; font-size: 0.85em; opacity: 0.9; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;">${timeRange}</div>`;
+                    contentHtml += `<div style="font-weight: 500; font-size: 0.85em; opacity: 0.9; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;">${escapeHtml(timeRange)}</div>`;
                     contentHtml += `<div style="font-weight: 600; white-space: normal; line-height: 1.2; overflow: hidden;">${titleText}</div>`;
                     contentHtml += `</div>`;
                 }
@@ -734,12 +829,14 @@
             },
             
             select: function(info) {
+                if (!canEditCalendar) return;
                 openModal(info);
             },
             eventClick: function(info) {
                 openModal(info);
             },
             eventChange: function(info) {
+                if (!canEditCalendar) return;
                 if (isUpdatingFromServer) return;
                 const eventData = {
                     action: 'update',
@@ -851,6 +948,7 @@
         // Color Picker Logic
         document.querySelectorAll('.color-dot').forEach(dot => {
             dot.addEventListener('click', function() {
+                if (!canEditCalendar) return;
                 const color = this.dataset.color;
                 document.getElementById('eventColor').value = color;
                 updateColorDots(color);
@@ -859,6 +957,10 @@
 
         eventForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            if (!canEditCalendar) {
+                alert('You do not have permission to modify this schedule.');
+                return;
+            }
             if(!document.getElementById('eventTitle').value) {
                 alert('Title is required');
                 return;
