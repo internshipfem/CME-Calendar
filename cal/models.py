@@ -7,10 +7,11 @@ class Calendar(models.Model):
     name = models.CharField(max_length=100)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calendars')
     is_public = models.BooleanField(default=False)
+    is_internal = models.BooleanField(default=False, db_index=True)
     subscribers = models.ManyToManyField(User, related_name='subscribed_calendars', blank=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} (Internal)" if self.is_internal else self.name
 
 class Event(models.Model):
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE, related_name='events', null=True, blank=True)
